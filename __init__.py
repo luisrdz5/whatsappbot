@@ -55,11 +55,46 @@ def webhook_whatsapp():
 
         respuesta=respuesta.replace("\\n","\\\n")
         respuesta=respuesta.replace("\\","")
-        f = open("texto.txt", "w")
-        f.write(respuesta)
-        f.close()
+        #CONECTAMOS A LA BASE DE DATOS
+        import mysql.connector
+        mydb = mysql.connector.connect(
+          host = os.environ["DB_HOST"],
+          user = os.environ["DB_USER"],
+          password = os.environ["DB_PASSWORD"],
+          database=os.environ["DB_NAME"]
+        )
+        mycursor = mydb.cursor()
+        query="SELECT count(id) AS cantidad FROM registro WHERE id_wa='" + idWA + "';"
+        mycursor.execute(query)
+
+        cantidad, = mycursor.fetchone()
+        cantidad=str(cantidad)
+        cantidad=int(cantidad)
+        if cantidad==0 :
+            sql = ("INSERT INTO registro"+ 
+            "(mensaje_recibido,mensaje_enviado,id_wa      ,timestamp_wa   ,telefono_wa) VALUES "+
+            "('"+mensaje+"'   ,'"+respuesta+"','"+idWA+"' ,'"+timestamp+"','"+telefonoCliente+"');")
+            mycursor.execute(sql)
+            mydb.commit()
+            enviar(telefonoCliente,respuesta)
         #RETORNAMOS EL STATUS EN UN JSON
         return jsonify({"status": "success"}, 200)
+    
+#Funcion Enviar
+
+def enviar(telefonoRecibe,respuesta):
+  from heyoo import WhatsApp
+  #TOKEN DE ACCESO DE FACEBOOK
+  token=os.environ["WATTSAPP_TOKEN"]
+  #IDENTIFICADOR DE NÚMERO DE TELÉFONO
+  idNumeroTeléfono=os.environ["ID_TELEFONO"]
+  #INICIALIZAMOS ENVIO DE MENSAJES
+  mensajeWa=WhatsApp(token,idNumeroTeléfono)
+  telefonoRecibe=telefonoRecibe.replace("521","52")
+  #ENVIAMOS UN MENSAJE DE TEXTO
+  mensajeWa.send_message(respuesta,telefonoRecibe)
+
+
 #INICIAMSO FLASK
 if __name__ == "__main__":
   app.run(debug=True)
